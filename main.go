@@ -1,5 +1,0 @@
-package plax
-
-func main() {
-
-}
