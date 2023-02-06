@@ -1,4 +1,4 @@
-@ Plax: Plex Local Asset eXporter.
+# Plax: Plex Local Asset eXporter.
 
 Utility for exporting posters and backgrounds from `Plex`.
 
