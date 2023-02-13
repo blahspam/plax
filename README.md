@@ -1,4 +1,4 @@
-@ PLAX: Plex Local Asset eXporter.
+# PLAX: Plex Local Asset eXporter.
 
 Export [Plex](https://plex.tv) posters, covers, and backgrounds to the corresponding media directory.
 
