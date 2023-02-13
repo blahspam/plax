@@ -4,23 +4,26 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
-    - id: check-merge-conflict
-    - id: mixed-line-ending
-    - id: end-of-file-fixer
-    - id: trailing-whitespace
-      args: [--markdown-linebreak-ext=md]
-  - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.4.2
-    hooks:
-    - id: remove-crlf
-    - id: remove-tabs
-      args: [--whitespaces-count, "2"]
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
   - repo: https://github.com/sirosen/texthooks
     rev: 0.4.0
     hooks:
-    - id: fix-smartquotes
+      - id: fix-smartquotes
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-vet
+      - id: golangci-lint
+      - id: go-unit-tests
+      - id: go-build
+      - id: go-mod-tidy
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v2.1.1
     hooks:
-    - id: conventional-pre-commit
-      stages: [commit-msg]
+      - id: conventional-pre-commit
+        stages: [commit-msg]

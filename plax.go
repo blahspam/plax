@@ -1,17 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"io"
-	"net/http"
+	"log"
 	"os"
-	"path/filepath"
 	"strings"
+	"sync"
 
-	"github.com/jrudio/go-plex-client"
-	"github.com/schollz/progressbar/v3"
+	"github.com/blahspam/plax/plex"
 	"github.com/urfave/cli/v2"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
+
+var dryRun bool
 
 // main
 func main() {
@@ -43,183 +44,92 @@ func main() {
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:  "output-dir",
-				Usage: "alternate directory for exported assets",
+				Name:    "library",
+				Aliases: []string{"l"},
+				Usage:   "export assets from the named library",
+				Value:   "all",
 			},
 			&cli.BoolFlag{
-				Name:    "quiet",
-				Aliases: []string{"q"},
-				Usage:   "less verbose output",
+				Name:        "dry-run",
+				Usage:       "print assets to be exported without exporting them",
+				Destination: &dryRun,
 			},
 		},
 		Action: func(ctx *cli.Context) error {
-			p, err := plex.New(strings.TrimSuffix(ctx.String("url"), "/"), ctx.String("token"))
+			cl, err := plex.New(strings.TrimSuffix(ctx.String("url"), "/"), ctx.String("token"))
 			if err != nil {
-				return cli.Exit(err, 1)
+				return cli.Exit(err, -1)
 			}
 
-			libs, err := p.GetLibraries()
+			// get available library
+			libs, err := cl.Libraries(ctx.String("library"))
 			if err != nil {
-				return cli.Exit(err, 2)
+				return cli.Exit(err, -1)
+			}
+			if len(libs) == 0 {
+				return cli.Exit("no libraries to export", 0)
 			}
 
-			outputDir := ctx.String("output-dir")
+			// process each lib in parallel
+			var wg sync.WaitGroup
+			wg.Add(len(libs))
 
-			for i := range libs.MediaContainer.Directory {
-				dir := &libs.MediaContainer.Directory[i]
+			// progress bars
+			prog := mpb.New(mpb.WithWidth(64))
+			defer prog.Wait()
+			log.SetOutput(prog)
 
-				contents, err := p.GetLibraryContent(dir.Key, "")
-				if err != nil {
-					logError("error retrieving library contents: %s", err)
-					continue
-				}
+			defer prog.Wait()
+			for i := range libs {
+				bar := prog.AddBar(
+					0,
+					mpb.PrependDecorators(
+						decor.Name(libs[i].Title, decor.WCSyncWidth),
+						decor.CountersNoUnit(" %d/%d", decor.WCSyncWidth),
+					),
+					mpb.AppendDecorators(
+						decor.Elapsed(decor.ET_STYLE_GO, decor.WCSyncWidthR),
+						decor.Any(func(s decor.Statistics) string {
+							if s.Total == 0 {
+								return " preparing"
+							}
+							if s.Completed {
+								return " done"
+							}
+							return ""
+						}, decor.WCSyncWidthR),
+					),
+				)
 
-				var bar *progressbar.ProgressBar
-				if !ctx.Bool("quiet") {
-					bar = progressbar.NewOptions(len(contents.MediaContainer.Metadata),
-						progressbar.OptionEnableColorCodes(true),
-						progressbar.OptionSetDescription(fmt.Sprintf("[%d/%d] Exporting %s", i+1, len(libs.MediaContainer.Directory), dir.Title)),
-						progressbar.OptionShowCount(),
-						progressbar.OptionSetTheme(progressbar.Theme{
-							Saucer:        "[green]=[reset]",
-							SaucerHead:    "[green]>[reset]",
-							SaucerPadding: " ",
-							BarStart:      "[",
-							BarEnd:        "]",
-						}))
-				}
+				go func(cl *plex.Client, lib *plex.Library, bar *mpb.Bar) {
+					defer wg.Done()
+					defer bar.SetTotal(-1, true)
 
-				for _, meta := range contents.MediaContainer.Metadata {
-					switch meta.Type {
-					case "movie":
-						exportMovieAssets(p, meta, outputDir)
-					case "show":
-						exportShowAssets(p, meta, outputDir)
+					// retrieving contents and update bar total
+					contents, err := cl.Contents(lib)
+					if err != nil {
+						log.Printf("error retrieving contents for %s: %s\n", lib.Type, err)
+						return
 					}
+					bar.SetTotal(int64(len(contents)), false)
 
-					if bar != nil {
-						_ = bar.Add(1)
+					for i := range contents {
+						if err := cl.Download(&contents[i], ctx.Bool("dry-run")); err != nil {
+							log.Printf("error downloading content for %s: %s\n", contents[i].Title, err)
+							continue
+						}
+						bar.Increment()
 					}
-				}
+				}(cl, &libs[i], bar)
 			}
+
+			wg.Wait()
 
 			return nil
 		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		logError(err.Error())
+		log.Fatalf(err.Error())
 	}
-}
-
-// download an asset from plex and store it at the location specified.
-func download(p *plex.Plex, assetPath string, file string) error {
-	if assetPath == "" {
-		return nil
-	}
-
-	req, err := http.NewRequest(http.MethodGet, p.URL+assetPath, nil)
-	req.Header.Add("X-Plex-Token", p.Token)
-
-	resp, err := p.HTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("error retrieving art: %w", err)
-	}
-
-	if err := os.MkdirAll(filepath.Dir(file), os.ModePerm); err != nil {
-		return fmt.Errorf("error creating dir: %w", err)
-	}
-
-	f, err := os.Create(file)
-	if err != nil {
-		return fmt.Errorf("error creating file: %w", err)
-	}
-	defer f.Close()
-
-	_, _ = io.Copy(f, resp.Body)
-	return nil
-}
-
-// getAssets returns the slice of assets for a content item.
-func exportAssets(p *plex.Plex, meta plex.Metadata, outputDir string) {
-	if err := download(p, meta.Thumb, outputDir+"/poster.jpg"); err != nil {
-		logError("error exporting poster for %s: %s", meta.Title, err)
-	}
-	if err := download(p, meta.Art, outputDir+"/background.jpg"); err != nil {
-		logError("error storing background for %s: %s", meta.Title, err)
-	}
-}
-
-// export movie assets
-func exportMovieAssets(p *plex.Plex, movieMeta plex.Metadata, outputDir string) {
-	movieDir := filepath.Join(outputDir, getContentDir(p, movieMeta))
-	exportAssets(p, movieMeta, movieDir)
-}
-
-// export show and season assets
-func exportShowAssets(p *plex.Plex, showMeta plex.Metadata, outputDir string) {
-	// show assets
-	showDir := filepath.Join(outputDir, getContentDir(p, showMeta))
-	exportAssets(p, showMeta, showDir)
-
-	// season assets
-	seasons, err := p.GetEpisodes(showMeta.RatingKey)
-	if err != nil {
-		logError("error retrieving %s seasons: %s", showMeta.Title)
-		return
-	}
-
-	for _, seasonMeta := range seasons.MediaContainer.Metadata {
-		seasonDir := filepath.Join(outputDir, getContentDir(p, seasonMeta))
-		exportAssets(p, seasonMeta, seasonDir)
-	}
-}
-
-// getContentDir returns the directory where a content's assets are to be
-// stored.
-func getContentDir(p *plex.Plex, meta plex.Metadata) string {
-	switch meta.Type {
-	case "movie", "episode":
-		for _, m := range meta.Media {
-			for _, p := range m.Part {
-				if p.File != "" {
-					return filepath.Dir(p.File)
-				}
-			}
-		}
-	case "season":
-		episodes, err := p.GetEpisodes(meta.RatingKey)
-		if err != nil {
-			logError("error retrieving episodes: %s", err)
-			return ""
-		}
-		for _, episodeMeta := range episodes.MediaContainer.Metadata {
-			// season directory is identical to episode directory
-			p := getContentDir(p, episodeMeta)
-			if p != "" {
-				return p
-			}
-		}
-	case "show":
-		seasons, err := p.GetEpisodes(meta.RatingKey)
-		if err != nil {
-			logError("error retrieving seasons: %s", err)
-			return ""
-		}
-		for _, seasonMeta := range seasons.MediaContainer.Metadata {
-			// show directory is parent of season directory
-			p := getContentDir(p, seasonMeta)
-			if p != "" {
-				return strings.TrimSuffix(p, filepath.Base(p))
-			}
-		}
-	default:
-		logError("unsupported metadata type: %s", meta.Type)
-	}
-	return ""
-}
-
-// logError for logging errors.
-func logError(format string, args ...any) {
-	fmt.Fprintf(os.Stderr, format+"\n", args)
 }
