@@ -27,8 +27,13 @@ jobs:
         with:
           go-version: 1.20
 
+      - name: Install dependencies
+        run: |
+          go version
+          go get -u
+
       - name: Build
-        run: go build -v ./...
+        run: go build -v ./plax.go
 
   build-and-push-image:
     runs-on: ubuntu-latest
