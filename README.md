@@ -1,4 +1,4 @@
-# PLAX: Plex Local Asset eXporter.
+@ PLAX: Plex Local Asset eXporter.
 
 Export [Plex](https://plex.tv) posters, covers, and backgrounds to the corresponding media directory.
 
@@ -41,6 +41,53 @@ plax:
   volumes:
     - /mnt/media/movies:/movies
     - /mnt/media/tv:/tv 
+```
+
+### Kubernetes CronJob
+
+Example of a Kubernetes CronJob 
+
+```yaml
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: plax
+  namespace: default
+spec:
+  schedule: "@daily"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          containers:
+            - name: plax-container
+              image: ghcr.io/blahspam/plax:1.0.0
+              volumeMounts:
+                - name: media
+                  mountPath: /mnt/media
+              env:
+                - name: PUID
+                  value: "1001"
+                - name: PGID
+                  value: "1001"
+                - name: PLEX_URL
+                  value: "http://192.0.2.0:32400"
+                - name: PLEX_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: plex-token
+                      key: token
+          volumes:
+            - name: media
+              nfs:
+                path: /mnt/media/
+                server: nas.local
 ```
 
 ## Assumptions
