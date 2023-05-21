@@ -1,0 +1,39 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "enabledManagers": [
+    "docker",
+    "gomod",
+    "github-actions",
+    "pre-commit"
+  ],
+  "gitAuthor": "blahspam-bot <bot@blahspam.com>",
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": true
+    },
+    {
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "automerge": true
+    }
+  ],
+  "platform": "github",
+  "platformAutomerge": true,
+  "pre-commit": {
+    "enabled": true
+  },
+  "postUpdateOptions": [
+    "gomodTidy"
+  ]
+}

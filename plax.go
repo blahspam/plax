@@ -1,3 +1,4 @@
+// Package main is the entrypoint for the plax application.
 package main
 
 import (
