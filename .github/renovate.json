@@ -5,7 +5,7 @@
     ":semanticCommitTypeAll(chore)"
   ],
   "enabledManagers": [
-    "docker",
+    "dockerfile",
     "gomod",
     "github-actions",
     "pre-commit"
