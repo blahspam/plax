@@ -2,16 +2,19 @@
 package plex
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	gpc "github.com/jrudio/go-plex-client"
 )
 
+// New constructs a new Plex client for the given URL and token.
 func New(url string, token string) (*Client, error) {
 	p, err := gpc.New(url, token)
 	if err != nil {
@@ -20,6 +23,7 @@ func New(url string, token string) (*Client, error) {
 	return &Client{p}, nil
 }
 
+// Client is wraps gpc.Plex with additional functionality.
 type Client struct {
 	plex *gpc.Plex
 }
@@ -231,7 +235,13 @@ func (cl *Client) download(path string, file string, dryRun bool) error {
 		return nil
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("error building request: %w", err)
+	}
 	req.Header.Add("X-Plex-Token", cl.plex.Token)
 
 	resp, err := cl.plex.HTTPClient.Do(req)
