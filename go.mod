@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/jrudio/go-plex-client v0.0.0-20230508221844-834554e41d30
-	github.com/urfave/cli/v2 v2.25.3
+	github.com/urfave/cli/v2 v2.25.4
 	github.com/vbauerster/mpb/v8 v8.4.0
 )
 
