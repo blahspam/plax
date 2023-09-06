@@ -1,6 +1,6 @@
 ################################################
 # Build
-FROM golang:1.21.0-alpine3.17 AS build
+FROM golang:1.21.1-alpine3.17 AS build
 
 COPY ./ /src
 WORKDIR /src
