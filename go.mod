@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/jrudio/go-plex-client v0.0.0-20230508221844-834554e41d30
-	github.com/urfave/cli/v2 v2.27.2
+	github.com/urfave/cli/v2 v2.27.3
 	github.com/vbauerster/mpb/v8 v8.7.4
 )
 
@@ -17,6 +17,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
+	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 )
