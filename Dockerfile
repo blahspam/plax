@@ -8,7 +8,7 @@ RUN go build ./plax.go
 
 ################################################
 # Package
-FROM alpine:3.20
+FROM alpine:3.21
 COPY --from=build /src/plax /opt/plax
 
 ARG CREATED=unknown
