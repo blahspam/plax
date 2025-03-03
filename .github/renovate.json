@@ -6,6 +6,8 @@
     ":dependencyDashboard",
     ":semanticCommitTypeAll(chore)"
   ],
+  "automergeType": "branch",
+  "dependencyDashboardTitle": "Dependency Dashboard \uD83E\uDD16",
   "enabledManagers": [
     "dockerfile",
     "github-actions",
