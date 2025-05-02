@@ -1,11 +1,13 @@
 module github.com/blahspam/plax
 
-go 1.19
+go 1.23.0
+
+toolchain go1.24.2
 
 require (
 	github.com/jrudio/go-plex-client v0.0.0-20250127195314-943dc7a39f7c
 	github.com/urfave/cli/v2 v2.27.6
-	github.com/vbauerster/mpb/v8 v8.9.3
+	github.com/vbauerster/mpb/v8 v8.10.0
 )
 
 require (
@@ -18,5 +20,5 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
 )
