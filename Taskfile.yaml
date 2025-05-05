@@ -1,0 +1,194 @@
+---
+version: "3"
+
+tasks:
+
+  ##############################################################################
+  ## Build Support
+  ##############################################################################
+
+  build:
+    desc: "Build the application"
+    dir: "{{.ROOT_DIR}}"
+    silent: true
+    cmds:
+      - go build -o ./plax
+
+  clean:
+    desc: "Clean build artifacts"
+    dir: "{{.ROOT_DIR}}"
+    silent: true
+    cmds:
+      - rm -rf ./delphi
+      - rm -rf ./ui/dist
+      - rm -rf ./ui/node_modules
+      - go clean -cache -testcache
+
+  drop:
+    desc: "Drop and recreate the delphi_test database"
+    dir: "{{.ROOT_DIR}}"
+    cmds:
+      - dropdb delphi_test && createdb delphi_test
+
+  migrate:
+    desc: "Migrate the test database"
+    dir: "{{.ROOT_DIR}}"
+    deps:
+      - build
+    env:
+      DB_URI: "{{.DELPHI_TEST_DBURI}}"
+    silent: true
+    cmds:
+      - ./delphi migrate
+
+  test:
+    desc: "Run test suite"
+    dir: "{{.ROOT_DIR}}"
+    deps:
+      - migrate
+    env:
+      DB_URI: "{{.DELPHI_TEST_DBURI}}"
+    silent: true
+    cmds:
+      - go test -cover --coverprofile coverage.txt --covermode atomic --race ./...
+
+  bench:
+    desc: "Run benchmarks"
+    dir: "{{.ROOT_DIR}}"
+    deps:
+      - migrate
+    env:
+      DB_URI: "{{.DELPHI_TEST_DBURI}}"
+    silent: true
+    cmds:
+      - go test -run XXX -bench 'Benchmark.' -benchmem -benchtime 5s ./...
+
+  bump:
+    desc: "Bump version"
+    dir: "{{.ROOT_DIR}}"
+    silent: true
+    cmds:
+      - echo "Bumping versions to {{.VERSION}}"
+      - "sed -i '' -e 's/tag: .*/tag: {{.VERSION}}/' ./helm/delphi-core/values.yaml"
+      - "sed -i '' -e 's/version: .*/version: {{.VERSION}}/' ./helm/delphi-core/Chart.yaml"
+      - "sed -i '' -e 's/appVersion: .*/appVersion: {{.VERSION}}/' ./helm/delphi-core/Chart.yaml"
+      - "sed -i '' -e 's/tag: .*/tag: {{.VERSION}}/' ./helm/delphi-gateway/values.yaml"
+      - "sed -i '' -e 's/version: .*/version: {{.VERSION}}/' ./helm/delphi-gateway/Chart.yaml"
+      - "sed -i '' -e 's/appVersion: .*/appVersion: {{.VERSION}}/' ./helm/delphi-gateway/Chart.yaml"
+
+  cover:
+    desc: "Generate coverage report"
+    dir: "{{.ROOT_DIR}}"
+    silent: true
+    deps:
+      - test
+    cmds:
+      - covreport -i coverage.txt -o docs/test/coverage/index.html
+
+  ##############################################################################
+  ## Dev Support
+  ##############################################################################
+
+  run:
+    desc: "Run delphi-core"
+    dir: "{{.ROOT_DIR}}"
+    deps:
+      - build
+    env:
+      DB_URI: '{{.DB_URI | default "postgres://postgres@localhost:5432/delphi?sslmode=disable&connect_timeout=5&pool_max_conns=10&pool_min_conns=2&pool_max_conn_idle_time=5m"}}'
+      OYEZ_DEBUG: '{{.OYEZ_DEBUG | default "true"}}'
+      OYEZ_COLOR: "true"
+      SERVICE: "delphi-core"
+    silent: true
+    cmds:
+      - ./delphi core
+
+  ##############################################################################
+  ## Docker
+  ##############################################################################
+
+  docker:all:
+    desc: "Build and push all Docker images"
+    deps:
+      - docker:core
+      - docker:gateway
+
+  docker:core:
+    desc: "Build and push the delphi-core Docker image"
+    dir: "{{.ROOT_DIR}}"
+    vars:
+      DOCKER_NS: "hub.comcast.net/viper-live"
+    preconditions:
+      - sh: "[ {{.GHEC_USER}} ]"
+        msg: $GHEC_USER not set.
+      - sh: "[ {{.GHEC_TOKEN}} ]"
+        msg: $GHEC_TOKEN not set.
+    silent: true
+    cmds:
+      - |
+        docker-buildx build . -f ./docker/Dockerfile.core \
+          --platform linux/amd64 \
+          --build-arg USERNAME=$GHEC_USER \
+          --secret id=token,env=$GHEC_TOKEN \
+          -t {{.DOCKER_NS}}/delphi-core:latest \
+          -t {{.DOCKER_NS}}/delphi-core:{{.VERSION}}
+      - docker push -a {{.DOCKER_NS}}/delphi-core
+
+  docker:gateway:
+    desc: "Build and push the delphi-gateway Docker image"
+    dir: "{{.ROOT_DIR}}"
+    vars:
+      DOCKER_NS: "hub.comcast.net/viper-live"
+    silent: true
+    cmds:
+      - |
+        docker-buildx build . -f ./docker/Dockerfile.gateway \
+          --platform linux/amd64 \
+          -t {{.DOCKER_NS}}/delphi-gateway:latest \
+          -t {{.DOCKER_NS}}/delphi-gateway:{{.VERSION}}
+      - docker push -a {{.DOCKER_NS}}/delphi-gateway
+
+  ##############################################################################
+  ## Helm
+  ##############################################################################
+
+  helm:all:
+    desc: "Package and push all Helm charts"
+    silent: true
+    deps:
+      - helm:core
+      - helm:gateway
+
+  helm:core:
+    desc: "Package and push the delphi-core Helm chart"
+    dir: "{{.ROOT_DIR}}/helm"
+    silent: true
+    cmds:
+      - |
+        CHART_NAME=$(helm package ./delphi-core -u -d ./versions | sed -ne 's/^.*: //p')
+        helm push $CHART_NAME oci://hub.comcast.net/viper-live/charts
+
+  helm:gateway:
+    desc: "Package and push the delphi-gateway Helm chart"
+    dir: "{{.ROOT_DIR}}/helm"
+    silent: true
+    cmds:
+      - |
+        CHART_NAME=$(helm package ./delphi-gateway -u -d ./versions | sed -ne 's/^.*: //p')
+        helm push $CHART_NAME oci://hub.comcast.net/viper-live/charts
+
+  ##############################################################################
+  ## Release Support
+  ##############################################################################
+
+  release:
+    desc: "Create a release for the current version."
+    silent: true
+    deps:
+      - bump
+    preconditions:
+      - sh: git diff --exit-code
+        msg: please commit changes before releasing
+    cmds:
+      - git diff --exit-code && git tag -a "v{{.VERSION}}" -m "Tagged v{{.VERSION}}"
+      - git push origin `git rev-parse --abbrev-ref HEAD` --atomic --follow-tags

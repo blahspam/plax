@@ -1,0 +1,25 @@
+---
+run:
+  tests: false
+
+linters:
+  enable:
+    - bodyclose
+    - contextcheck
+    - gci
+    - gocritic
+    - godox
+    - errorlint
+    - exhaustive
+    - gofmt
+    - misspell
+    - noctx
+    - revive
+    - sqlclosecheck
+
+issues:
+  include:
+    - EXC0012
+    - EXC0013
+    - EXC0014
+    - EXC0015
