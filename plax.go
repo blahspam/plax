@@ -99,7 +99,7 @@ func main() {
 					),
 				)
 
-				go func(cl *plex.Client, lib *plex.Library, bar *mpb.Bar) {
+				go func(ctx context.Context, cl *plex.Client, lib *plex.Library, bar *mpb.Bar) {
 					defer wg.Done()
 					defer bar.SetTotal(-1, true)
 
@@ -111,14 +111,14 @@ func main() {
 					}
 					bar.SetTotal(int64(len(contents)), false)
 
-					for i := range contents {
-						if err := cl.Download(&contents[i], cmd.Bool("dry-run")); err != nil {
-							slog.Error("Error downloading content", slog.String("title", contents[i].Title), slog.String("err", err.Error()))
+					for j := range contents {
+						if err := cl.Download(ctx, &contents[j], cmd.Bool("dry-run")); err != nil {
+							slog.Error("Error downloading content", slog.String("title", contents[j].Title), slog.String("err", err.Error()))
 							continue
 						}
 						bar.Increment()
 					}
-				}(cl, &libs[i], bar)
+				}(ctx, cl, &libs[i], bar)
 			}
 
 			wg.Wait()
