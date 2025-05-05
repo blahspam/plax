@@ -27,22 +27,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.24"
-          check-latest: true
 
-      - name: Go Format
-        run: gofmt -s -w . && git diff --exit-code
-
-      - name: Go Tidy
-        run: go mod tidy && git diff --exit-code
-
-      - name: Go Mod
-        run: go mod download
-
-      - name: Go Mod Verify
-        run: go mod verify
-
-      - name: Go Vet
-        run: go vet ./...
+      - name: Run linters
+        uses: golangci/golangci-lint-action@v7
+        env:
+          GOFLAGS: -buildvcs=false
+        with:
+          args: -v --timeout=5m
 
       - name: Go Build
         run: go build -o /dev/null ./...

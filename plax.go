@@ -3,6 +3,7 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -131,6 +132,6 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatalf(err.Error())
+		slog.Error(err.Error())
 	}
 }

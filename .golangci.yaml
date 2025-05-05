@@ -1,25 +1,35 @@
----
+version: "2"
 run:
   tests: false
-
 linters:
   enable:
     - bodyclose
     - contextcheck
-    - gci
-    - gocritic
-    - godox
     - errorlint
     - exhaustive
-    - gofmt
+    - gocritic
+    - godox
     - misspell
     - noctx
     - revive
     - sqlclosecheck
-
-issues:
-  include:
-    - EXC0012
-    - EXC0013
-    - EXC0014
-    - EXC0015
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
