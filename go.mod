@@ -2,12 +2,11 @@ module github.com/blahspam/plax
 
 go 1.23.0
 
-toolchain go1.24.2
+toolchain go1.24.3
 
 require (
 	github.com/jrudio/go-plex-client v0.0.0-20250127195314-943dc7a39f7c
 	github.com/urfave/cli/v2 v2.27.6
-	github.com/urfave/cli/v3 v3.3.2
 	github.com/vbauerster/mpb/v8 v8.10.0
 )
 
