@@ -2,7 +2,7 @@ module github.com/blahspam/plax
 
 go 1.23.0
 
-toolchain go1.24.6
+toolchain go1.25.0
 
 require (
 	github.com/jrudio/go-plex-client v0.0.0-20250127195314-943dc7a39f7c
