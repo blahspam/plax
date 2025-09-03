@@ -1,6 +1,6 @@
 ################################################
 # Build
-FROM golang:1.24-alpine AS build
+FROM golang:1.25-alpine AS build
 
 COPY ./ /src
 WORKDIR /src
@@ -8,7 +8,7 @@ RUN go build ./plax.go
 
 ################################################
 # Package
-FROM alpine:3.21
+FROM alpine:3.22
 COPY --from=build /src/plax /opt/plax
 
 ARG CREATED=unknown
