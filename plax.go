@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"os"
@@ -9,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/blahspam/plax/plex"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 )
@@ -18,31 +19,26 @@ var dryRun bool
 
 // main
 func main() {
-	app := cli.App{
+	app := cli.Command{
 		Name:        "plax",
 		Usage:       "Plex Local Asset eXporter",
 		Description: "Export posters and background assets from Plex",
 		Version:     "0.1.0",
-		Authors: []*cli.Author{
-			{
-				Name:  "Jeff Bailey",
-				Email: "jeff@blahspam.com",
-			},
-		},
+		Authors:     []any{"Jeff Bailey <jeff@blahspam.com>"},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "url",
 				Aliases:  []string{"u"},
 				Usage:    "Plex base URL",
 				Value:    "http://127.0.0.1:32400",
-				EnvVars:  []string{"PLEX_URL"},
+				Sources:  cli.EnvVars("PLEX_URL"),
 				Required: true,
 			},
 			&cli.StringFlag{
 				Name:     "token",
 				Aliases:  []string{"t"},
 				Usage:    "Plex authentication token",
-				EnvVars:  []string{"PLEX_TOKEN"},
+				Sources:  cli.EnvVars("PLEX_TOKEN"),
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -57,14 +53,14 @@ func main() {
 				Destination: &dryRun,
 			},
 		},
-		Action: func(ctx *cli.Context) error {
-			cl, err := plex.New(strings.TrimSuffix(ctx.String("url"), "/"), ctx.String("token"))
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			cl, err := plex.New(strings.TrimSuffix(cmd.String("url"), "/"), cmd.String("token"))
 			if err != nil {
 				return cli.Exit(err, -1)
 			}
 
 			// get available library
-			libs, err := cl.Libraries(ctx.String("library"))
+			libs, err := cl.Libraries(cmd.String("library"))
 			if err != nil {
 				return cli.Exit(err, -1)
 			}
@@ -103,26 +99,26 @@ func main() {
 					),
 				)
 
-				go func(cl *plex.Client, lib *plex.Library, bar *mpb.Bar) {
+				go func(ctx context.Context, cl *plex.Client, lib *plex.Library, bar *mpb.Bar) {
 					defer wg.Done()
 					defer bar.SetTotal(-1, true)
 
 					// retrieving contents and update bar total
 					contents, err := cl.Contents(lib)
 					if err != nil {
-						log.Printf("error retrieving contents for %s: %s\n", lib.Type, err)
+						slog.Error("Error retrieving contents", slog.String("type", lib.Type), slog.String("err", err.Error()))
 						return
 					}
 					bar.SetTotal(int64(len(contents)), false)
 
-					for i := range contents {
-						if err := cl.Download(&contents[i], ctx.Bool("dry-run")); err != nil {
-							log.Printf("error downloading content for %s: %s\n", contents[i].Title, err)
+					for j := range contents {
+						if err := cl.Download(ctx, &contents[j], cmd.Bool("dry-run")); err != nil {
+							slog.Error("Error downloading content", slog.String("title", contents[j].Title), slog.String("err", err.Error()))
 							continue
 						}
 						bar.Increment()
 					}
-				}(cl, &libs[i], bar)
+				}(ctx, cl, &libs[i], bar)
 			}
 
 			wg.Wait()
@@ -131,7 +127,8 @@ func main() {
 		},
 	}
 
-	if err := app.Run(os.Args); err != nil {
-		slog.Error(err.Error())
+	ctx := context.Background()
+	if err := app.Run(ctx, os.Args); err != nil {
+		slog.ErrorContext(ctx, err.Error())
 	}
 }
