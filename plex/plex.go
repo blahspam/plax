@@ -64,20 +64,20 @@ func (cl *Client) Contents(l *Library) ([]Content, error) {
 }
 
 // Download assets for the supplied Content,
-func (cl *Client) Download(c *Content, dryRun bool) error {
+func (cl *Client) Download(ctx context.Context, c *Content, dryRun bool) error {
 	if c.Art != "" {
-		if err := cl.download(c.Art, c.Directory+"/background.jpg", dryRun); err != nil {
+		if err := cl.download(ctx, c.Art, c.Directory+"/background.jpg", dryRun); err != nil {
 			return err
 		}
 	}
 	if c.Thumb != "" {
 		switch c.Type {
 		case "album":
-			if err := cl.download(c.Thumb, c.Directory+"/cover.jpg", dryRun); err != nil {
+			if err := cl.download(ctx, c.Thumb, c.Directory+"/cover.jpg", dryRun); err != nil {
 				return err
 			}
 		default:
-			if err := cl.download(c.Thumb, c.Directory+"/poster.jpg", dryRun); err != nil {
+			if err := cl.download(ctx, c.Thumb, c.Directory+"/poster.jpg", dryRun); err != nil {
 				return err
 			}
 		}
@@ -225,7 +225,7 @@ func (cl *Client) showContents(l *Library) ([]Content, error) {
 }
 
 // download the given asset path to the file specified
-func (cl *Client) download(path string, file string, dryRun bool) error {
+func (cl *Client) download(ctx context.Context, path string, file string, dryRun bool) error {
 	// perform the request
 	url := cl.plex.URL + path
 
@@ -235,7 +235,7 @@ func (cl *Client) download(path string, file string, dryRun bool) error {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
