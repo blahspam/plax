@@ -7,7 +7,7 @@ toolchain go1.25.5
 require (
 	github.com/jrudio/go-plex-client v0.0.0-20250127195314-943dc7a39f7c
 	github.com/urfave/cli/v2 v2.27.7
-	github.com/vbauerster/mpb/v8 v8.11.2
+	github.com/vbauerster/mpb/v8 v8.11.3
 )
 
 require (
@@ -21,5 +21,5 @@ require (
 	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 )
